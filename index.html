@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자양2동 모아타운 전체구역 사업성 계산기</title>
+    
+    <!-- 파이어베이스 핵심 라이브러리 로드 -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* 기본 테마 및 폰트 설정 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+        :root {
+            --color-primary: #185FA5;       
+            --color-primary-light: #E6F1FB; 
+            --color-success: #27500A;       
+            --color-success-light: #EAF3DE;
+            --color-bg-main: #F8FAFC;       
+            --color-bg-card: #FFFFFF;       
+            --color-border: #E2E8F0;        
+            --color-text-main: #1E293B;     
+            --color-text-muted: #64748B;    
+            --font-main: 'Inter', 'Noto Sans KR', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-main); background-color: var(--color-bg-main); color: var(--color-text-main); line-height: 1.6; padding: 2rem 1rem; }
+        .container { max-width: 1040px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2.5rem; }
+        header h1 { font-size: 1.8rem; font-weight: 700; color: #0F172A; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+        header p { font-size: 0.95rem; color: var(--color-text-muted); }
+        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #334155; display: flex; align-items: center; gap: 0.5rem; }
+        .section-title::before { content: ''; display: inline-block; width: 4px; height: 16px; background-color: var(--color-primary); border-radius: 2px; }
+
+        /* 대시보드 */
+        .dashboard { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+        .ratio-card { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.5rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .ratio-card.main-sc { border: 2px solid var(--color-primary); position: relative; }
+        .ratio-card.main-sc .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background-color: var(--color-primary); color: white; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 20px; }
+        .ratio-card .sc-name { font-size: 0.9rem; font-weight: 500; color: var(--color-text-muted); margin-bottom: 0.5rem; }
+        .ratio-card .sc-value { font-size: 2rem; font-weight: 700; color: var(--color-text-main); margin-bottom: 0.25rem; }
+        .ratio-card.main-sc .sc-value { color: var(--color-primary); }
+        .ratio-card .sc-desc { font-size: 0.8rem; color: var(--color-text-muted); }
+
+        /* 계산기 구역 */
+        .calculator-box { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 2.5rem; }
+        .selector-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .form-group label { font-size: 0.9rem; font-weight: 500; color: #475569; }
+        .form-group select, .form-group input { width: 100%; padding: 0.75rem 1rem; font-size: 0.95rem; border: 1px solid #CBD5E1; border-radius: 8px; color: var(--color-text-main); outline: none; background-color: #FFF; }
+
+        /* 결과창 */
+        .result-window { background-color: #F1F5F9; border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--color-primary); }
+        .result-title { font-size: 0.95rem; font-weight: 600; color: #334155; margin-bottom: 1rem; }
+        .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .result-item { background-color: var(--color-bg-card); padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border); }
+        .result-item .label { font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 0.25rem; }
+        .result-item .value { font-size: 1.15rem; font-weight: 700; color: var(--color-text-main); }
+        .result-item .value.highlight { color: #C2410C; }
+        .result-item .value.refund { color: #15803D; }
+
+        /* 테이블 */
+        .asset-detail-box { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 2.5rem; }
+        .detail-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+        .detail-table th { background-color: #F8FAFC; color: var(--color-text-muted); font-size: 0.85rem; font-weight: 600; padding: 0.75rem; border-bottom: 2px solid var(--color-border); text-align: center; }
+        .detail-table td { padding: 0.75rem; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+        .table-input { width: 100%; padding: 0.5rem; font-size: 0.9rem; border: 1px solid #CBD5E1; border-radius: 6px; text-align: right; }
+        .pct-text { font-weight: 500; color: var(--color-primary); text-align: center; display: block; }
+        .calc-text { font-weight: 600; text-align: right; display: block; }
+
+        /* 하단 설정 창 */
+        .admin-settings { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .input-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
+        .input-group label { font-size: 0.8rem; font-weight: 500; color: var(--color-text-muted); text-transform: uppercase; }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .input-wrapper input { width: 100%; padding: 0.55rem 0.75rem; font-size: 0.9rem; border: 1px solid #CBD5E1; border-radius: 6px; color: var(--color-text-main); text-align: right; padding-right: 2.2rem; }
+        .input-wrapper input:readonly { background-color: #F1F5F9; color: #64748B; }
+        .input-wrapper .unit { position: absolute; right: 0.6rem; font-size: 0.8rem; color: var(--color-text-muted); }
+        .btn-area { text-align: right; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border); }
+        .save-btn { background-color: var(--color-primary); color: white; border: none; padding: 0.65rem 1.5rem; font-size: 0.9rem; font-weight: 500; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
+        .save-btn:hover { background-color: #104F8B; }
+
+        @media (max-width: 768px) {
+            .dashboard, .selector-grid, .result-grid { grid-template-columns: 1fr; }
+            .input-grid { grid-template-columns: 1fr 1fr; }
+            .detail-table th, .detail-table td { font-size: 0.75rem; padding: 0.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>자양2동 모아타운 전체구역 사업성 계산기</h1>
+        <p>전체구역 매크로 스케일 기반 실시간 분담금 및 조합원 분양가 시뮬레이터</p>
+    </header>
+
+    <!-- 1. 상단 대시보드 -->
+    <div class="dashboard">
+        <div class="ratio-card">
+            <div class="sc-name">보수적 시나리오</div>
+            <div class="sc-value" id="ratio-sc0">계산 중...</div>
+            <div class="sc-desc">일반분양가 평당 <span id="label-gp0">5,500</span>만 원 기준</div>
+        </div>
+        <div class="ratio-card main-sc">
+            <div class="badge">추천 시나리오</div>
+            <div class="sc-name">현실적 시나리오</div>
+            <div class="sc-value" id="ratio-sc1">계산 중...</div>
+            <div class="sc-desc">일반분양가 평당 <span id="label-gp1">7,000</span>만 원 기준</div>
+        </div>
+        <div class="ratio-card">
+            <div class="sc-name">낙관적 시나리오</div>
+            <div class="sc-value" id="ratio-sc2">계산 중...</div>
+            <div class="sc-desc">일반분양가 평당 <span id="label-gp2">7,500</span>만 원 기준</div>
+        </div>
+    </div>
+
+    <!-- 2. 중간 메인 영역 -->
+    <div class="calculator-box">
+        <div class="section-title">내 예상 분담금 확인하기</div>
+        <div class="selector-grid">
+            <div class="form-group">
+                <label for="asset-type-select">1. 내 종전자산 유형</label>
+                <select id="asset-type-select">
+                    <option value="gongdong" selected>공동주택 (빌라 / 소형아파트)</option>
+                    <option value="dandok">단독주택 / 다가구주택</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="asset-py-input">2. 소유 대지 지분 면적</label>
+                <div class="input-wrapper">
+                    <input type="number" id="asset-py-input" value="8" min="0.1" step="0.1" style="text-align: left; padding-right: 2rem;">
+                    <span class="unit" style="right: 1rem; top: 50%; transform: translateY(-50%);">평</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="scenario-select">3. 사업성 시나리오 선택</label>
+                <select id="scenario-select">
+                    <option value="0">보수적 시나리오</option>
+                    <option value="1" selected>현실적 시나리오</option>
+                    <option value="2">낙관적 시나리오</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="py-input">4. 분양 희망 평형 직접 입력</label>
+                <div class="input-wrapper">
+                    <input type="number" id="py-input" value="34" min="1" max="150" step="1" style="text-align: left; padding-right: 2rem;">
+                    <span class="unit" style="right: 1rem; top: 50%; transform: translateY(-50%);">평형</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-window">
+            <div class="result-title" id="dynamic-result-title">💡 예상 정산 결과</div>
+            <div class="result-grid">
+                <div class="result-item">
+                    <div class="label">계산된 내 감정가</div>
+                    <div class="value" id="res-appraised" style="color: var(--color-primary);">0.00억 원</div>
+                </div>
+                <div class="result-item">
+                    <div class="label">계산된 조합원 분양가</div>
+                    <div class="value" id="res-price" style="color: #334155;">0.00억 원</div>
+                </div>
+                <div class="result-item">
+                    <div class="label">최종 정산액 (환급/부담)</div>
+                    <div class="value" id="res-dudam">0.00억 원</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2-2. 토지유형별 종전자산 및 면적 세부 계산기 -->
+    <div class="asset-detail-box">
+        <div class="section-title">구역 내 토지유형별 종전자산 세부 산정</div>
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th>토지 유형</th>
+                    <th style="width: 22%;">실제 면적 (㎡)</th>
+                    <th style="width: 15%;">자동 비율 (%)</th>
+                    <th style="width: 25%;">평당 감평가 (만 원)</th>
+                    <th style="width: 22%;">예상 자산가액 (억 원)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>공동주택</strong></td>
+                    <td><input type="number" id="area-gongdong" class="table-input" value="13914" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="pct-gongdong" class="pct-text">0%</span></td>
+                    <td><input type="number" id="price-gongdong" class="table-input" value="4500" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="val-gongdong" class="calc-text">0.00</span></td>
+                </tr>
+                <tr>
+                    <td><strong>단독주택</strong></td>
+                    <td><input type="number" id="area-dandok" class="table-input" value="10040" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="pct-dandok" class="pct-text">0%</span></td>
+                    <td><input type="number" id="price-dandok" class="table-input" value="3500" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="val-dandok" class="calc-text">0.00</span></td>
+                </tr>
+                <tr>
+                    <td><strong>근린생활시설</strong></td>
+                    <td><input type="number" id="area-geunsaeng" class="table-input" value="2941" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="pct-geunsaeng" class="pct-text">0%</span></td>
+                    <td><input type="number" id="price-geunsaeng" class="table-input" value="4000" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="val-geunsaeng" class="calc-text">0.00</span></td>
+                </tr>
+                <tr>
+                    <td><strong>도로</strong></td>
+                    <td><input type="number" id="area-doro" class="table-input" value="7732" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="pct-doro" class="pct-text">0%</span></td>
+                    <td><input type="number" id="price-doro" class="table-input" value="1500" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="val-doro" class="calc-text">0.00</span></td>
+                </tr>
+                <tr>
+                    <td><strong>기타</strong></td>
+                    <td><input type="number" id="area-gita" class="table-input" value="4257" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="pct-gita" class="pct-text">0%</span></td>
+                    <td><input type="number" id="price-gita" class="table-input" value="2000" oninput="calculateDetailedAssets()"></td>
+                    <td><span id="val-gita" class="calc-text">0.00</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. 하단 상세 수치 수정 창 -->
+    <div class="admin-settings">
+        <div class="section-title">사업성 기본 변수 확인 및 수정 (시뮬레이션용)</div>
+        <div class="input-grid">
+            <div class="input-group">
+                <label>전체 구역 면적(자동 연동)</label>
+                <div class="input-wrapper"><input type="text" id="inp-site-area" value="38884.00" readonly><span class="unit">㎡</span></div>
+            </div>
+            <div class="input-group" style="background-color: #FFF7ED; padding: 4px; border-radius: 6px; border: 1px solid #FFEDD5;">
+                <label style="color: #C2410C; font-weight: 600;">조합원 수 (수정 시 분양비율 자동연동)</label>
+                <div class="input-wrapper"><input type="text" id="inp-owners" value="457" oninput="calculateDetailedAssets()" style="font-weight: 700; color: #C2410C;"><span class="unit">명</span></div>
+            </div>
+            <div class="input-group">
+                <label>계획 용적률</label>
+                <div class="input-wrapper"><input type="text" id="inp-far" value="3.0" oninput="calculateDetailedAssets()"><span class="unit">FAR</span></div>
+            </div>
+            <div class="input-group">
+                <label>평당 공사비</label>
+                <div class="input-wrapper"><input type="text" id="inp-const-cost" value="900" oninput="calculateDetailedAssets()"><span class="unit">만원</span></div>
+            </div>
+        </div>
+
+        <div class="input-grid">
+            <div class="input-group">
+                <label>보수적 일반분양가</label>
+                <div class="input-wrapper"><input type="text" id="inp-gp0" value="5500" oninput="calculateDetailedAssets()"><span class="unit">만원</span></div>
+            </div>
+            <div class="input-group">
+                <label>현실적 일반분양가</label>
+                <div class="input-wrapper"><input type="text" id="inp-gp1" value="7000" oninput="calculateDetailedAssets()"><span class="unit">만원</span></div>
+            </div>
+            <div class="input-group">
+                <label>낙관적 일반분양가</label>
+                <div class="input-wrapper"><input type="text" id="inp-gp2" value="7500" oninput="calculateDetailedAssets()"><span class="unit">만원</span></div>
+            </div>
+            <div class="input-group" style="background-color: #EFF6FF; padding: 4px; border-radius: 6px;">
+                <label style="color: #1E40AF; font-weight: 600;">전체 구역 자산총액</label>
+                <div class="input-wrapper"><input type="text" id="inp-total-assets" value="3921.25" readonly style="background-color: #EFF6FF; font-weight: 700; color: #1E40AF;"><span class="unit">억원</span></div>
+            </div>
+        </div>
+
+        <div class="btn-area">
+            <button type="button" class="save-btn" onclick="applyAdminSettings()">변수 저장 및 클라우드 동기화</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBUB5rKk_cs_J1GVuJps6090mmIrsJwAZY",
+  authDomain: "re-build-apt.firebaseapp.com",
+  projectId: "re-build-apt",
+  storageBucket: "re-build-apt.firebasestorage.app",
+  messagingSenderId: "462307663252",
+  appId: "1:462307663252:web:f134e84641fe2594170381",
+  measurementId: "G-NFSYYQE1G2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection('moatown').doc('moatown_config');
+
+let INPUT = {
+  SITE_AREA_M2:    38884.00, 
+  OWNERS:          457,
+  FAR:             3.00,
+  GFA_ABOVE_M2:    108253.94,
+  GFA_BELOW_M2:    64007.41,
+  CONST_COST_PY:   900,      
+  TOTAL_ASSETS:    3921.25,     
+  AVG_RELOC:       8000,     
+  OW_101: 46, OW_84: 297, OW_59: 114,
+  GN_84:  231,  GN_59:  226,
+  PY_101: 40,  PY_84:  34,  PY_59: 25,
+  RENTAL_50: 145, RENTAL_59: 8,
+  INC_RENTAL: 307,           
+  SCENARIOS: [
+    { name:"보수적", GP:5500, OP:4125 }, 
+    { name:"현실",   GP:7000, OP:5250 },
+    { name:"낙관",   GP:7500, OP:5625 },
+  ],
+  DETAIL_AREAS: { gongdong: 13914, dandok: 10040, geunsaeng: 2941, doro: 7732, gita: 4257 },
+  DETAIL_PRICES: { gongdong: 4500, dandok: 3500, geunsaeng: 4000, doro: 1500, gita: 2000 }
+};
+
+function calcGFA(p) { return (p.GFA_ABOVE_M2 + p.GFA_BELOW_M2) / 3.3058; }
+
+function calcCost(p) {
+  const gfaPy = calcGFA(p);
+  const grossConst = gfaPy * p.CONST_COST_PY / 10000;
+  const netConst = grossConst - (p.INC_RENTAL * 0.82);
+  const design = grossConst * 0.07;
+  const reloc = p.OWNERS * p.AVG_RELOC / 10000;
+  const finance = 635;  
+  const vat = grossConst * ((p.GN_84 + p.GN_59) / (p.RENTAL_50 + p.RENTAL_59 + p.OW_101 + p.OW_84 + p.OW_59 + p.GN_84 + p.GN_59)) * 0.10;
+  const school = (p.OW_101 + p.OW_84 + p.OW_59 + p.GN_84 + p.GN_59) * 45 / 10000;
+  return { total: netConst + design + reloc + finance + 178 + 203 + vat + school + 71 + 107 + (grossConst * 0.05) };
+}
+
+function calcIncome(p, sc) {
+  const globalAreaPyeong = p.SITE_AREA_M2 / 3.3058;
+  const globalAssetsManwon = p.TOTAL_ASSETS * 10000;
+  const frontTerm = globalAreaPyeong > 0 ? (globalAssetsManwon / (globalAreaPyeong * p.FAR)) : 0;
+  const backTerm = 1.4 * p.CONST_COST_PY;
+  const computedOP = frontTerm + backTerm; 
+
+  const ow101 = p.OW_101 * p.PY_101 * computedOP / 10000;
+  const ow84  = p.OW_84  * p.PY_84  * computedOP / 10000;
+  const ow59  = p.OW_59  * p.PY_59  * computedOP / 10000;
+  const gn84  = p.GN_84  * p.PY_84  * sc.GP / 10000;
+  const gn59  = p.GN_59  * p.PY_59  * sc.GP / 10000;
+  return { total: ow101 + ow84 + ow59 + gn84 + gn59 + p.INC_RENTAL };
+}
+
+function calcRatio(p, sc) { return (calcIncome(p, sc).total - calcCost(p).total) / p.TOTAL_ASSETS * 100; }
+function calcRightsValue(appraised, ratio) { return appraised * ratio / 100; }
+
+// 토지유형별 데이터 취합 및 동적 조합원-일반분양 세대 자동분배 파이프라인
+function calculateDetailedAssets() {
+  const types = ['gongdong', 'dandok', 'geunsaeng', 'doro', 'gita'];
+  let totalArea = 0;
+  let totalAssetsEok = 0;
+
+  types.forEach(t => {
+    const area = parseFloat(document.getElementById(`area-${t}`).value) || 0;
+    INPUT.DETAIL_AREAS[t] = area;
+    totalArea += area;
+  });
+
+  types.forEach(t => {
+    const area = INPUT.DETAIL_AREAS[t];
+    const price = parseFloat(document.getElementById(`price-${t}`).value) || 0;
+    INPUT.DETAIL_PRICES[t] = price;
+
+    const pct = totalArea > 0 ? (area / totalArea) * 100 : 0;
+    document.getElementById(`pct-${t}`).innerText = pct.toFixed(0) + '%';
+
+    const pyeong = area / 3.3058;
+    const assetVal = (pyeong * price) / 10000; 
+    document.getElementById(`val-${t}`).innerText = assetVal.toFixed(2);
+    totalAssetsEok += assetVal;
+  });
+
+  INPUT.SITE_AREA_M2 = totalArea;
+  INPUT.TOTAL_ASSETS = totalAssetsEok;
+
+  // 구역 면적 비율에 맞춰 건립할 수 있는 아파트 총량 구하기
+  const baseArea = 15303.60;
+  const scaleFactor = totalArea > 0 ? totalArea / baseArea : 1;
+
+  INPUT.GFA_ABOVE_M2 = 42602.81 * scaleFactor;
+  INPUT.GFA_BELOW_M2 = 25190.00 * scaleFactor;
+  
+  // 건립 가능한 총 아파트 세대 기본 분량
+  const totalSale101 = Math.round(18 * scaleFactor);
+  const totalSale84  = Math.round(208 * scaleFactor);
+  const totalSale59  = Math.round(134 * scaleFactor);
+
+  // 🌟 [핵심 변경 파트] 인풋창에 유저가 기재한 조합원 숫자를 정밀 주입
+  const ownersInput = parseInt(document.getElementById('inp-owners').value);
+  INPUT.OWNERS = isNaN(ownersInput) ? Math.round(180 * scaleFactor) : ownersInput;
+
+  // 조합원 평형 신청 트랙 비율 배분 (40평 10% / 34평 65% / 25평 25%)
+  INPUT.OW_101 = Math.round(INPUT.OWNERS * 0.10);
+  INPUT.OW_84  = Math.round(INPUT.OWNERS * 0.65);
+  INPUT.OW_59  = INPUT.OWNERS - INPUT.OW_101 - INPUT.OW_84; // 합계 교정 보정
+
+  // 🌟 [핵심 연동] 전체 지어진 아파트에서 조합원들이 가져간 방을 뺀 나머지가 진짜 '일반분양 세대'가 됨!
+  INPUT.GN_84  = Math.max(0, totalSale84 - INPUT.OW_84);
+  INPUT.GN_59  = Math.max(0, totalSale59 - INPUT.OW_59);
+
+  INPUT.RENTAL_50 = Math.round(57 * scaleFactor);
+  INPUT.RENTAL_59 = Math.round(3 * scaleFactor);
+  INPUT.INC_RENTAL = 121 * scaleFactor;
+
+  // 인풋 가시 동기화
+  document.getElementById('inp-site-area').value = totalArea.toFixed(2);
+  document.getElementById('inp-total-assets').value = totalAssetsEok.toFixed(2);
+
+  renderCalculator();
+}
+
+function renderCalculator() {
+  // 인풋창의 일반분양가 수치를 시나리오 배열 객체에 강제 주입하여 실시간 추적화
+  INPUT.SCENARIOS[0].GP = parseFloat(document.getElementById('inp-gp0').value) || 5500;
+  INPUT.SCENARIOS[1].GP = parseFloat(document.getElementById('inp-gp1').value) || 7000;
+  INPUT.SCENARIOS[2].GP = parseFloat(document.getElementById('inp-gp2').value) || 7500;
+
+  INPUT.SCENARIOS.forEach((sc, index) => {
+    const ratio = calcRatio(INPUT, sc);
+    document.getElementById(`ratio-sc${index}`).innerText = ratio.toFixed(1) + '%';
+    document.getElementById(`label-gp${index}`).innerText = sc.GP.toLocaleString();
+  });
+
+  // 드롭다운 텍스트 자동 변경 바인딩
+  document.getElementById('scenario-select').options[0].text = `보수적 시나리오 (평당 ${INPUT.SCENARIOS[0].GP.toLocaleString()}만 원)`;
+  document.getElementById('scenario-select').options[1].text = `현실적 시나리오 (평당 ${INPUT.SCENARIOS[1].GP.toLocaleString()}만 원)`;
+  document.getElementById('scenario-select').options[2].text = `낙관적 시나리오 (평당 ${INPUT.SCENARIOS[2].GP.toLocaleString()}만 원)`;
+
+  const scIndex = parseInt(document.getElementById('scenario-select').value) || 0;
+  const targetScenario = INPUT.SCENARIOS[scIndex]; 
+
+  const assetType = document.getElementById('asset-type-select').value; 
+  const pyeongPrice = parseFloat(document.getElementById(`price-${assetType}`).value) || 0; 
+  const userPyeong = parseFloat(document.getElementById('asset-py-input').value) || 0;
+
+  const selectedAppraised = (userPyeong * pyeongPrice) / 10000; 
+  
+  const globalAreaPyeong = INPUT.SITE_AREA_M2 / 3.3058; 
+  const globalAssetsManwon = INPUT.TOTAL_ASSETS * 10000; 
+  
+  const frontTerm = globalAreaPyeong > 0 ? (globalAssetsManwon / (globalAreaPyeong * INPUT.FAR)) : 0;
+  const backTerm = 1.4 * INPUT.CONST_COST_PY;
+  
+  const finalPricePerPyeong = frontTerm + backTerm; 
+  const selectedPy = parseFloat(document.getElementById('py-input').value) || 0; 
+  const ownerPrice = (finalPricePerPyeong * selectedPy) / 10000;
+
+  const currentRatio = calcRatio(INPUT, targetScenario);
+  const rightsValue = calcRightsValue(selectedAppraised, currentRatio);
+  const finalDudam = ownerPrice - rightsValue;
+
+  document.getElementById('dynamic-result-title').innerText = `💡 ${targetScenario.name} 시나리오 정산 결과 (비례율: ${currentRatio.toFixed(1)}% / 평당 조합원분양가: ${Math.round(finalPricePerPyeong).toLocaleString()}만 원)`;
+  document.getElementById('res-appraised').innerText = selectedAppraised.toFixed(2) + '억 원';
+  document.getElementById('res-price').innerText = ownerPrice.toFixed(2) + '억 원';
+
+  const dudamElement = document.getElementById('res-dudam');
+  if (finalDudam > 0) {
+    dudamElement.innerText = '약 ' + finalDudam.toFixed(2) + '억 원 부담';
+    dudamElement.className = 'value highlight';
+  } else {
+    dudamElement.innerText = '약 ' + Math.abs(finalDudam).toFixed(2) + '억 원 환급';
+    dudamElement.className = 'value refund';
+  }
+}
+
+function syncFormFromData() {
+  const types = ['gongdong', 'dandok', 'geunsaeng', 'doro', 'gita'];
+  types.forEach(t => {
+    document.getElementById(`area-${t}`).value = INPUT.DETAIL_AREAS[t] !== undefined ? INPUT.DETAIL_AREAS[t] : 0;
+    document.getElementById(`price-${t}`).value = INPUT.DETAIL_PRICES[t] !== undefined ? INPUT.DETAIL_PRICES[t] : 0;
+  });
+
+  document.getElementById('inp-owners').value = INPUT.OWNERS;
+  document.getElementById('inp-far').value = INPUT.FAR.toFixed(1);
+  document.getElementById('inp-const-cost').value = INPUT.CONST_COST_PY;
+  document.getElementById('inp-gp0').value = INPUT.SCENARIOS[0].GP;
+  document.getElementById('inp-gp1').value = INPUT.SCENARIOS[1].GP;
+  document.getElementById('inp-gp2').value = INPUT.SCENARIOS[2].GP;
+}
+
+async function applyAdminSettings() {
+  const btn = document.querySelector('.save-btn');
+  btn.textContent = '클라우드 저장 중... ⏳';
+
+  INPUT.OWNERS        = parseInt(document.getElementById('inp-owners').value);
+  INPUT.FAR           = parseFloat(document.getElementById('inp-far').value);
+  INPUT.CONST_COST_PY = parseFloat(document.getElementById('inp-const-cost').value);
+  INPUT.SCENARIOS[0].GP = parseFloat(document.getElementById('inp-gp0').value);
+  INPUT.SCENARIOS[1].GP = parseFloat(document.getElementById('inp-gp1').value);
+  INPUT.SCENARIOS[2].GP = parseFloat(document.getElementById('inp-gp2').value);
+
+  calculateDetailedAssets(); 
+
+  try {
+    await docRef.set(INPUT);
+    btn.textContent = '클라우드 저장 및 적용 완료 ✓';
+  } catch (error) {
+    console.error("Firebase 저장 오류:", error);
+    btn.textContent = '저장 실패 ❌';
+  }
+  setTimeout(() => btn.textContent = '변수 저장 및 클라우드 동기화', 2000);
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const doc = await docRef.get();
+    if (doc.exists) {
+      const cloudData = doc.data();
+      INPUT = {
+        ...INPUT,
+        ...cloudData,
+        DETAIL_AREAS: { ...INPUT.DETAIL_AREAS, ...cloudData.DETAIL_AREAS },
+        DETAIL_PRICES: { ...INPUT.DETAIL_PRICES, ...cloudData.DETAIL_PRICES }
+      };
+    }
+  } catch (error) { console.error("Firebase 로드 실패:", error); }
+
+  syncFormFromData();
+  calculateDetailedAssets(); 
+});
+
+document.getElementById('asset-type-select').addEventListener('change', renderCalculator);
+document.getElementById('asset-py-input').addEventListener('input', renderCalculator);
+document.getElementById('scenario-select').addEventListener('change', renderCalculator); 
+document.getElementById('py-input').addEventListener('input', renderCalculator);
+</script>
+
+</body>
+</html>
