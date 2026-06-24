@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>자양2동 모아타운 전체구역 사업성 계산기</title>
     
-    <!-- 파이어베이스 핵심 라이브러리 로드 -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
@@ -32,18 +31,9 @@
         header { text-align: center; margin-bottom: 2.5rem; }
         header h1 { font-size: 1.8rem; font-weight: 700; color: #0F172A; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
         header p { font-size: 0.95rem; color: var(--color-text-muted); }
-        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #334155; display: flex; align-items: center; gap: 0.5rem; }
-        .section-title::before { content: ''; display: inline-block; width: 4px; height: 16px; background-color: var(--color-primary); border-radius: 2px; }
-
-        /* 대시보드 */
-        .dashboard { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
-        .ratio-card { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.5rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .ratio-card.main-sc { border: 2px solid var(--color-primary); position: relative; }
-        .ratio-card.main-sc .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background-color: var(--color-primary); color: white; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 20px; }
-        .ratio-card .sc-name { font-size: 0.9rem; font-weight: 500; color: var(--color-text-muted); margin-bottom: 0.5rem; }
-        .ratio-card .sc-value { font-size: 2rem; font-weight: 700; color: var(--color-text-main); margin-bottom: 0.25rem; }
-        .ratio-card.main-sc .sc-value { color: var(--color-primary); }
-        .ratio-card .sc-desc { font-size: 0.8rem; color: var(--color-text-muted); }
+        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #334155; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+        .section-title-left { display: flex; align-items: center; gap: 0.5rem; }
+        .section-title-left::before { content: ''; display: inline-block; width: 4px; height: 16px; background-color: var(--color-primary); border-radius: 2px; }
 
         /* 계산기 구역 */
         .calculator-box { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 2.5rem; }
@@ -52,17 +42,44 @@
         .form-group label { font-size: 0.9rem; font-weight: 500; color: #475569; }
         .form-group select, .form-group input { width: 100%; padding: 0.75rem 1rem; font-size: 0.95rem; border: 1px solid #CBD5E1; border-radius: 8px; color: var(--color-text-main); outline: none; background-color: #FFF; }
 
-        /* 결과창 */
+        /* 결과창 (4열 격자로 비례율 파트 내재화 수용) */
         .result-window { background-color: #F1F5F9; border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--color-primary); }
         .result-title { font-size: 0.95rem; font-weight: 600; color: #334155; margin-bottom: 1rem; }
-        .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .result-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
         .result-item { background-color: var(--color-bg-card); padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border); }
         .result-item .label { font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 0.25rem; }
         .result-item .value { font-size: 1.15rem; font-weight: 700; color: var(--color-text-main); }
         .result-item .value.highlight { color: #C2410C; }
         .result-item .value.refund { color: #15803D; }
 
-        /* 테이블 */
+        /* 🔥 신규 추가: 작았다가 커지며 열리는 설명서 애니메이션 스타일 */
+        .manual-btn { background: none; border: none; color: var(--color-primary); font-size: 0.8rem; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; transition: background-color 0.2s; }
+        .manual-btn:hover { background-color: var(--color-primary-light); }
+        
+        .manual-pane { 
+            max-height: 0; 
+            opacity: 0; 
+            overflow: hidden; 
+            transform: scale(0.96); /* 작아져 있는 상태 */
+            transform-origin: top center;
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            background-color: #F8FAFC; 
+            border-radius: 8px; 
+            margin-top: 0;
+        }
+        .manual-pane.open { 
+            max-height: 800px; /* 커지면서 열림 */
+            opacity: 1; 
+            transform: scale(1); /* 정사이즈 복원 */
+            margin-top: 1rem;
+            padding: 1.2rem;
+            border: 1px dashed #CBD5E1;
+        }
+        .manual-pane ul { padding-left: 1.2rem; margin-top: 0.5rem; }
+        .manual-pane li { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.4rem; }
+        .manual-pane code { background-color: #E2E8F0; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 0.8rem; color: #0F172A; font-weight: 600; }
+
+        /* 테이블 및 설정창 */
         .asset-detail-box { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 2.5rem; }
         .detail-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
         .detail-table th { background-color: #F8FAFC; color: var(--color-text-muted); font-size: 0.85rem; font-weight: 600; padding: 0.75rem; border-bottom: 2px solid var(--color-border); text-align: center; }
@@ -71,7 +88,6 @@
         .pct-text { font-weight: 500; color: var(--color-primary); text-align: center; display: block; }
         .calc-text { font-weight: 600; text-align: right; display: block; }
 
-        /* 하단 설정 창 */
         .admin-settings { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .input-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
         .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -85,7 +101,7 @@
         .save-btn:hover { background-color: #104F8B; }
 
         @media (max-width: 768px) {
-            .dashboard, .selector-grid, .result-grid { grid-template-columns: 1fr; }
+            .selector-grid, .result-grid { grid-template-columns: 1fr; }
             .input-grid { grid-template-columns: 1fr 1fr; }
             .detail-table th, .detail-table td { font-size: 0.75rem; padding: 0.4rem; }
         }
@@ -99,30 +115,23 @@
         <p>전체구역 매크로 스케일 기반 실시간 분담금 및 조합원 분양가 시뮬레이터</p>
     </header>
 
-    <!-- 1. 상단 대시보드 -->
-    <div class="dashboard">
-        <div class="ratio-card">
-            <div class="sc-name">보수적 시나리오</div>
-            <div class="sc-value" id="ratio-sc0">계산 중...</div>
-            <div class="sc-desc">일반분양가 평당 <span id="label-gp0">5,500</span>만 원 기준</div>
-        </div>
-        <div class="ratio-card main-sc">
-            <div class="badge">추천 시나리오</div>
-            <div class="sc-name">현실적 시나리오</div>
-            <div class="sc-value" id="ratio-sc1">계산 중...</div>
-            <div class="sc-desc">일반분양가 평당 <span id="label-gp1">7,000</span>만 원 기준</div>
-        </div>
-        <div class="ratio-card">
-            <div class="sc-name">낙관적 시나리오</div>
-            <div class="sc-value" id="ratio-sc2">계산 중...</div>
-            <div class="sc-desc">일반분양가 평당 <span id="label-gp2">7,500</span>만 원 기준</div>
-        </div>
-    </div>
-
-    <!-- 2. 중간 메인 영역 -->
     <div class="calculator-box">
-        <div class="section-title">내 예상 분담금 확인하기</div>
-        <div class="selector-grid">
+        <div class="section-title">
+            <div class="section-title-left">내 예상 분담금 확인하기</div>
+            <button type="button" class="manual-btn" onclick="toggleManual('manual-calc', this)">산식 설명서 보기 ▼</button>
+        </div>
+        
+        <div id="manual-calc" class="manual-pane">
+            <strong>📊 분담금 정산 파이프라인 공식 안내</strong>
+            <ul>
+                <li><code>계산된 내 감정가</code>: 내 대지 면적 × 내가 속한 토지유형의 평당 감평가 단가입니다.</li>
+                <li><code>구역 비례율 ➡️ 권리가액</code>: 총수입에서 총지출을 뺀 뒤 자산총액으로 나눈 비례율 성적표를 내 감정가에 곱해 실질 재산가치(권리가액)를 뽑아냅니다.</li>
+                <li><code>계산된 조합원 분양가</code>: 기획안 기준 공식인 <code>[전체 자산가액 / (전체 면적 * 용적률) + 1.4 * 평당공사비] * 희망평형</code> 단위 보정 수식으로 도출됩니다.</li>
+                <li><code>최종 정산액</code>: 조합원 분양가에서 내 권리가액을 뺀 값이며, 플러스(+)는 <strong>추가 분담</strong>, 마이너스(-)는 <strong>조합 환급</strong>을 뜻합니다.</li>
+            </ul>
+        </div>
+
+        <div class="selector-grid" style="margin-top: 1rem;">
             <div class="form-group">
                 <label for="asset-type-select">1. 내 종전자산 유형</label>
                 <select id="asset-type-select">
@@ -161,6 +170,10 @@
                     <div class="label">계산된 내 감정가</div>
                     <div class="value" id="res-appraised" style="color: var(--color-primary);">0.00억 원</div>
                 </div>
+                <div class="result-item" style="background-color: #FFF7ED; border-color: #FED7AA;">
+                    <div class="label" style="color: #C2410C; font-weight: 500;">구역 비례율 ➡️ 권리가액</div>
+                    <div class="value" id="res-rights" style="color: #C2410C;">0.0% ➡️ 0.00억</div>
+                </div>
                 <div class="result-item">
                     <div class="label">계산된 조합원 분양가</div>
                     <div class="value" id="res-price" style="color: #334155;">0.00억 원</div>
@@ -173,10 +186,21 @@
         </div>
     </div>
 
-    <!-- 2-2. 토지유형별 종전자산 및 면적 세부 계산기 -->
     <div class="asset-detail-box">
-        <div class="section-title">구역 내 토지유형별 종전자산 세부 산정</div>
-        <table class="detail-table">
+        <div class="section-title">
+            <div class="section-title-left">구역 내 토지유형별 종전자산 세부 산정</div>
+            <button type="button" class="manual-btn" onclick="toggleManual('manual-table', this)">산식 설명서 보기 ▼</button>
+        </div>
+
+        <div id="manual-table" class="manual-pane">
+            <strong>📈 토지유형별 자산가액 도출 산식</strong>
+            <ul>
+                <li><code>자동 비율(%)</code>: 총합 구역 면적 중 해당 토지 용도가 차지하는 물리적인 점유 평동 비율입니다.</li>
+                <li><code>예상 자산가액 (억원)</code>: 제곱미터 단위를 평수로 환산한 뒤 평당 감평가를 곱해 자산 규모를 정산합니다. <code>(실제면적 ㎡ ÷ 3.3058) × 평당 감평가 ÷ 10000</code></li>
+            </ul>
+        </div>
+
+        <table class="detail-table" style="margin-top: 1rem;">
             <thead>
                 <tr>
                     <th>토지 유형</th>
@@ -226,16 +250,27 @@
         </table>
     </div>
 
-    <!-- 3. 하단 상세 수치 수정 창 -->
     <div class="admin-settings">
-        <div class="section-title">사업성 기본 변수 확인 및 수정 (시뮬레이션용)</div>
-        <div class="input-grid">
+        <div class="section-title">
+            <div class="section-title-left">사업성 기본 변수 확인 및 수정 (시뮬레이션용)</div>
+            <button type="button" class="manual-btn" onclick="toggleManual('manual-admin', this)">산식 설명서 보기 ▼</button>
+        </div>
+
+        <div id="manual-admin" class="manual-pane">
+            <strong>⚙️ 백엔드 사업성 연산 메커니즘</strong>
+            <ul>
+                <li><code>조합원 수 동적 분배</code>: 조합원 수가 늘어나면 총 건립 세대 중 조합원이 집을 우선 배분받기 때문에, 분양 매출이 높은 <strong>일반분양 세대수가 자동으로 줄어들어</strong> 비례율이 연동 하락하게 됩니다.</li>
+                <li><code>전체 구역 자산총액</code>: 위 토지유형별로 계산된 원천 자산가치 가액의 절대 총합이자, 비례율 공식의 기본 분모가 됩니다.</li>
+            </ul>
+        </div>
+
+        <div class="input-grid" style="margin-top: 1rem;">
             <div class="input-group">
                 <label>전체 구역 면적(자동 연동)</label>
                 <div class="input-wrapper"><input type="text" id="inp-site-area" value="38884.00" readonly><span class="unit">㎡</span></div>
             </div>
             <div class="input-group" style="background-color: #FFF7ED; padding: 4px; border-radius: 6px; border: 1px solid #FFEDD5;">
-                <label style="color: #C2410C; font-weight: 600;">조합원 수 (수정 시 분양비율 자동연동)</label>
+                <label style="color: #C2410C; font-weight: 600;">전체 조합원 수 (동적 분배)</label>
                 <div class="input-wrapper"><input type="text" id="inp-owners" value="457" oninput="calculateDetailedAssets()" style="font-weight: 700; color: #C2410C;"><span class="unit">명</span></div>
             </div>
             <div class="input-group">
@@ -274,6 +309,7 @@
 </div>
 
 <script>
+// 유저 연동 파이어베이스 정보 동기화 완결
 const firebaseConfig = {
   apiKey: "AIzaSyBUB5rKk_cs_J1GVuJps6090mmIrsJwAZY",
   authDomain: "re-build-apt.firebaseapp.com",
@@ -311,6 +347,17 @@ let INPUT = {
   DETAIL_PRICES: { gongdong: 4500, dandok: 3500, geunsaeng: 4000, doro: 1500, gita: 2000 }
 };
 
+// 🔥 설명서 열고 닫기 수식 모듈 (작았다가 부드럽게 튕기며 커지는 바이브 애니메이션 핸들러)
+function toggleManual(id, btn) {
+    const pane = document.getElementById(id);
+    pane.classList.toggle('open');
+    if (pane.classList.contains('open')) {
+        btn.innerHTML = '산식 설명서 닫기 ▲';
+    } else {
+        btn.innerHTML = '산식 설명서 보기 ▼';
+    }
+}
+
 function calcGFA(p) { return (p.GFA_ABOVE_M2 + p.GFA_BELOW_M2) / 3.3058; }
 
 function calcCost(p) {
@@ -343,7 +390,6 @@ function calcIncome(p, sc) {
 function calcRatio(p, sc) { return (calcIncome(p, sc).total - calcCost(p).total) / p.TOTAL_ASSETS * 100; }
 function calcRightsValue(appraised, ratio) { return appraised * ratio / 100; }
 
-// 토지유형별 데이터 취합 및 동적 조합원-일반분양 세대 자동분배 파이프라인
 function calculateDetailedAssets() {
   const types = ['gongdong', 'dandok', 'geunsaeng', 'doro', 'gita'];
   let totalArea = 0;
@@ -372,28 +418,22 @@ function calculateDetailedAssets() {
   INPUT.SITE_AREA_M2 = totalArea;
   INPUT.TOTAL_ASSETS = totalAssetsEok;
 
-  // 구역 면적 비율에 맞춰 건립할 수 있는 아파트 총량 구하기
   const baseArea = 15303.60;
   const scaleFactor = totalArea > 0 ? totalArea / baseArea : 1;
 
   INPUT.GFA_ABOVE_M2 = 42602.81 * scaleFactor;
   INPUT.GFA_BELOW_M2 = 25190.00 * scaleFactor;
   
-  // 건립 가능한 총 아파트 세대 기본 분량
-  const totalSale101 = Math.round(18 * scaleFactor);
   const totalSale84  = Math.round(208 * scaleFactor);
   const totalSale59  = Math.round(134 * scaleFactor);
 
-  // 🌟 [핵심 변경 파트] 인풋창에 유저가 기재한 조합원 숫자를 정밀 주입
   const ownersInput = parseInt(document.getElementById('inp-owners').value);
   INPUT.OWNERS = isNaN(ownersInput) ? Math.round(180 * scaleFactor) : ownersInput;
 
-  // 조합원 평형 신청 트랙 비율 배분 (40평 10% / 34평 65% / 25평 25%)
   INPUT.OW_101 = Math.round(INPUT.OWNERS * 0.10);
   INPUT.OW_84  = Math.round(INPUT.OWNERS * 0.65);
-  INPUT.OW_59  = INPUT.OWNERS - INPUT.OW_101 - INPUT.OW_84; // 합계 교정 보정
+  INPUT.OW_59  = INPUT.OWNERS - INPUT.OW_101 - INPUT.OW_84; 
 
-  // 🌟 [핵심 연동] 전체 지어진 아파트에서 조합원들이 가져간 방을 뺀 나머지가 진짜 '일반분양 세대'가 됨!
   INPUT.GN_84  = Math.max(0, totalSale84 - INPUT.OW_84);
   INPUT.GN_59  = Math.max(0, totalSale59 - INPUT.OW_59);
 
@@ -401,7 +441,6 @@ function calculateDetailedAssets() {
   INPUT.RENTAL_59 = Math.round(3 * scaleFactor);
   INPUT.INC_RENTAL = 121 * scaleFactor;
 
-  // 인풋 가시 동기화
   document.getElementById('inp-site-area').value = totalArea.toFixed(2);
   document.getElementById('inp-total-assets').value = totalAssetsEok.toFixed(2);
 
@@ -409,21 +448,25 @@ function calculateDetailedAssets() {
 }
 
 function renderCalculator() {
-  // 인풋창의 일반분양가 수치를 시나리오 배열 객체에 강제 주입하여 실시간 추적화
   INPUT.SCENARIOS[0].GP = parseFloat(document.getElementById('inp-gp0').value) || 5500;
   INPUT.SCENARIOS[1].GP = parseFloat(document.getElementById('inp-gp1').value) || 7000;
   INPUT.SCENARIOS[2].GP = parseFloat(document.getElementById('inp-gp2').value) || 7500;
 
-  INPUT.SCENARIOS.forEach((sc, index) => {
-    const ratio = calcRatio(INPUT, sc);
-    document.getElementById(`ratio-sc${index}`).innerText = ratio.toFixed(1) + '%';
-    document.getElementById(`label-gp${index}`).innerText = sc.GP.toLocaleString();
-  });
+  // 💥 상단 대시보드 비례율 카드 파트를 깔끔히 소멸시키고 내부 텍스트 연동만 백엔드 동기화 수행
+  const ratio0 = calcRatio(INPUT, INPUT.SCENARIOS[0]);
+  const ratio1 = calcRatio(INPUT, INPUT.SCENARIOS[1]);
+  const ratio2 = calcRatio(INPUT, INPUT.SCENARIOS[2]);
 
-  // 드롭다운 텍스트 자동 변경 바인딩
-  document.getElementById('scenario-select').options[0].text = `보수적 시나리오 (평당 ${INPUT.SCENARIOS[0].GP.toLocaleString()}만 원)`;
-  document.getElementById('scenario-select').options[1].text = `현실적 시나리오 (평당 ${INPUT.SCENARIOS[1].GP.toLocaleString()}만 원)`;
-  document.getElementById('scenario-select').options[2].text = `낙관적 시나리오 (평당 ${INPUT.SCENARIOS[2].GP.toLocaleString()}만 원)`;
+  document.getElementById('ratio-sc0').innerText = ratio0.toFixed(1) + '%';
+  document.getElementById('ratio-sc1').innerText = ratio1.toFixed(1) + '%';
+  document.getElementById('ratio-sc2').innerText = ratio2.toFixed(1) + '%';
+  document.getElementById('label-gp0').innerText = INPUT.SCENARIOS[0].GP.toLocaleString();
+  document.getElementById('label-gp1').innerText = INPUT.SCENARIOS[1].GP.toLocaleString();
+  document.getElementById('label-gp2').innerText = INPUT.SCENARIOS[2].GP.toLocaleString();
+
+  document.getElementById('scenario-select').options[0].text = `보수적 시나리오 (평당 ${INPUT.SCENARIOS[0].GP.toLocaleString()}만 원 / 비례율: ${ratio0.toFixed(1)}%)`;
+  document.getElementById('scenario-select').options[1].text = `현실적 시나리오 (평당 ${INPUT.SCENARIOS[1].GP.toLocaleString()}만 원 / 비례율: ${ratio1.toFixed(1)}%)`;
+  document.getElementById('scenario-select').options[2].text = `낙관적 시나리오 (평당 ${INPUT.SCENARIOS[2].GP.toLocaleString()}만 원 / 비례율: ${ratio2.toFixed(1)}%)`;
 
   const scIndex = parseInt(document.getElementById('scenario-select').value) || 0;
   const targetScenario = INPUT.SCENARIOS[scIndex]; 
@@ -448,8 +491,10 @@ function renderCalculator() {
   const rightsValue = calcRightsValue(selectedAppraised, currentRatio);
   const finalDudam = ownerPrice - rightsValue;
 
-  document.getElementById('dynamic-result-title').innerText = `💡 ${targetScenario.name} 시나리오 정산 결과 (비례율: ${currentRatio.toFixed(1)}% / 평당 조합원분양가: ${Math.round(finalPricePerPyeong).toLocaleString()}만 원)`;
+  // 🎯 결과 출력 보정 바인딩: 비례율이 계산 결과창 카드 안으로 정교하게 매칭 이식됨
+  document.getElementById('dynamic-result-title').innerText = `💡 ${targetScenario.name} 시나리오 정산 상세 (조합원 평당가: ${Math.round(finalPricePerPyeong).toLocaleString()}만 원 산출)`;
   document.getElementById('res-appraised').innerText = selectedAppraised.toFixed(2) + '억 원';
+  document.getElementById('res-rights').innerText = `${currentRatio.toFixed(1)}% ➡️ ${rightsValue.toFixed(2)}억 원`;
   document.getElementById('res-price').innerText = ownerPrice.toFixed(2) + '억 원';
 
   const dudamElement = document.getElementById('res-dudam');
@@ -523,6 +568,12 @@ document.getElementById('asset-py-input').addEventListener('input', renderCalcul
 document.getElementById('scenario-select').addEventListener('change', renderCalculator); 
 document.getElementById('py-input').addEventListener('input', renderCalculator);
 </script>
+
+<div style="display:none;">
+    <span id="ratio-sc0"></span><span id="label-gp0"></span>
+    <span id="ratio-sc1"></span><span id="label-gp1"></span>
+    <span id="ratio-sc2"></span><span id="label-gp2"></span>
+</div>
 
 </body>
 </html>
