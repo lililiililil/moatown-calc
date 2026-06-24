@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> 재개발 모아타운 사업성 계산기</title>
+    <title>자양2동 모아타운 전체구역 사업성 계산기</title>
     
+    <!-- 파이어베이스 핵심 라이브러리 로드 -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
@@ -42,7 +43,7 @@
         .form-group label { font-size: 0.9rem; font-weight: 500; color: #475569; }
         .form-group select, .form-group input { width: 100%; padding: 0.75rem 1rem; font-size: 0.95rem; border: 1px solid #CBD5E1; border-radius: 8px; color: var(--color-text-main); outline: none; background-color: #FFF; }
 
-        /* 결과창 (4열 격자로 비례율 파트 내재화 수용) */
+        /* 결과창 */
         .result-window { background-color: #F1F5F9; border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--color-primary); }
         .result-title { font-size: 0.95rem; font-weight: 600; color: #334155; margin-bottom: 1rem; }
         .result-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
@@ -52,7 +53,7 @@
         .result-item .value.highlight { color: #C2410C; }
         .result-item .value.refund { color: #15803D; }
 
-        /* 🔥 신규 추가: 작았다가 커지며 열리는 설명서 애니메이션 스타일 */
+        /* 설명서 애니메이션 스타일 */
         .manual-btn { background: none; border: none; color: var(--color-primary); font-size: 0.8rem; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; transition: background-color 0.2s; }
         .manual-btn:hover { background-color: var(--color-primary-light); }
         
@@ -60,7 +61,7 @@
             max-height: 0; 
             opacity: 0; 
             overflow: hidden; 
-            transform: scale(0.96); /* 작아져 있는 상태 */
+            transform: scale(0.96); 
             transform-origin: top center;
             transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
             background-color: #F8FAFC; 
@@ -68,15 +69,16 @@
             margin-top: 0;
         }
         .manual-pane.open { 
-            max-height: 800px; /* 커지면서 열림 */
+            max-height: 1200px; 
             opacity: 1; 
-            transform: scale(1); /* 정사이즈 복원 */
+            transform: scale(1); 
             margin-top: 1rem;
             padding: 1.2rem;
             border: 1px dashed #CBD5E1;
+            overflow-y: auto;
         }
         .manual-pane ul { padding-left: 1.2rem; margin-top: 0.5rem; }
-        .manual-pane li { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.4rem; }
+        .manual-pane li { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.5rem; line-height: 1.6; }
         .manual-pane code { background-color: #E2E8F0; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 0.8rem; color: #0F172A; font-weight: 600; }
 
         /* 테이블 및 설정창 */
@@ -88,7 +90,7 @@
         .pct-text { font-weight: 500; color: var(--color-primary); text-align: center; display: block; }
         .calc-text { font-weight: 600; text-align: right; display: block; }
 
-        .admin-settings { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .admin-settings { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 16px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 2.5rem; }
         .input-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
         .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
         .input-group label { font-size: 0.8rem; font-weight: 500; color: var(--color-text-muted); text-transform: uppercase; }
@@ -115,6 +117,7 @@
         <p>전체구역 매크로 스케일 기반 실시간 분담금 및 조합원 분양가 시뮬레이터</p>
     </header>
 
+    <!-- 2. 중간 메인 영역 -->
     <div class="calculator-box">
         <div class="section-title">
             <div class="section-title-left">내 예상 분담금 확인하기</div>
@@ -124,10 +127,10 @@
         <div id="manual-calc" class="manual-pane">
             <strong>📊 분담금 정산 파이프라인 공식 안내</strong>
             <ul>
-                <li><code>계산된 내 감정가</code>: 내 대지 면적 × 내가 속한 토지유형의 평당 감평가 단가입니다.</li>
-                <li><code>구역 비례율 ➡️ 권리가액</code>: 총수입에서 총지출을 뺀 뒤 자산총액으로 나눈 비례율 성적표를 내 감정가에 곱해 실질 재산가치(권리가액)를 뽑아냅니다.</li>
-                <li><code>계산된 조합원 분양가</code>: 기획안 기준 공식인 <code>[전체 자산가액 / (전체 면적 * 용적률) + 1.4 * 평당공사비] * 희망평형</code> 단위 보정 수식으로 도출됩니다.</li>
-                <li><code>최종 정산액</code>: 조합원 분양가에서 내 권리가액을 뺀 값이며, 플러스(+)는 <strong>추가 분담</strong>, 마이너스(-)는 <strong>조합 환급</strong>을 뜻합니다.</li>
+                <li><code>계산된 내 감정가</code>: 내 대지 면적 × 내가 속한 토지유형의 평당 감평가 단가입니다[cite: 1].</li>
+                <li><code>구역 비례율 ➡️ 권리가액</code>: 총수입에서 총지출을 뺀 뒤 자산총액으로 나눈 비례율 성적표를 내 감정가에 곱해 실질 재산가치(권리가액)를 뽑아냅니다[cite: 1].</li>
+                <li><code>계산된 조합원 분양가</code>: 기획안 기준 공식인 <code>[전체 자산가액 / (전체 면적 * 용적률) + 1.4 * 평당공사비] * 희망평형</code> 단위 보정 수식으로 도출됩니다[cite: 1].</li>
+                <li><code>최종 정산액</code>: 조합원 분양가에서 내 권리가액을 뺀 값이며, 플러스(+)는 <strong>추가 분담</strong>, 마이너스(-)는 <strong>조합 환급</strong>을 뜻합니다[cite: 1].</li>
             </ul>
         </div>
 
@@ -186,6 +189,7 @@
         </div>
     </div>
 
+    <!-- 2-2. 토지유형별 종전자산 및 면적 세부 계산기 -->
     <div class="asset-detail-box">
         <div class="section-title">
             <div class="section-title-left">구역 내 토지유형별 종전자산 세부 산정</div>
@@ -195,8 +199,8 @@
         <div id="manual-table" class="manual-pane">
             <strong>📈 토지유형별 자산가액 도출 산식</strong>
             <ul>
-                <li><code>자동 비율(%)</code>: 총합 구역 면적 중 해당 토지 용도가 차지하는 물리적인 점유 평동 비율입니다.</li>
-                <li><code>예상 자산가액 (억원)</code>: 제곱미터 단위를 평수로 환산한 뒤 평당 감평가를 곱해 자산 규모를 정산합니다. <code>(실제면적 ㎡ ÷ 3.3058) × 평당 감평가 ÷ 10000</code></li>
+                <li><code>자동 비율(%)</code>: 총합 구역 면적 중 해당 토지 용도가 차지하는 물리적인 점유 평동 비율입니다[cite: 1].</li>
+                <li><code>예상 자산가액 (억원)</code>: 제곱미터 단위를 평수로 환산한 뒤 평당 감평가를 곱해 자산 규모를 정산합니다[cite: 1]. <code>(실제면적 ㎡ ÷ 3.3058) × 평당 감평가 ÷ 10000</code>[cite: 1]</li>
             </ul>
         </div>
 
@@ -250,6 +254,7 @@
         </table>
     </div>
 
+    <!-- 3. 하단 상세 수치 수정 창 -->
     <div class="admin-settings">
         <div class="section-title">
             <div class="section-title-left">사업성 기본 변수 확인 및 수정 (시뮬레이션용)</div>
@@ -259,8 +264,8 @@
         <div id="manual-admin" class="manual-pane">
             <strong>⚙️ 백엔드 사업성 연산 메커니즘</strong>
             <ul>
-                <li><code>조합원 수 동적 분배</code>: 조합원 수가 늘어나면 총 건립 세대 중 조합원이 집을 우선 배분받기 때문에, 분양 매출이 높은 <strong>일반분양 세대수가 자동으로 줄어들어</strong> 비례율이 연동 하락하게 됩니다.</li>
-                <li><code>전체 구역 자산총액</code>: 위 토지유형별로 계산된 원천 자산가치 가액의 절대 총합이자, 비례율 공식의 기본 분모가 됩니다.</li>
+                <li><code>조합원 수 동적 분배</code>: 조합원 수가 늘어나면 총 건립 세대 중 조합원이 집을 우선 배분받기 때문에, 분양 매출이 높은 <strong>일반분양 세대수가 자동으로 줄어들어</strong> 비례율이 연동 하락하게 됩니다[cite: 1].</li>
+                <li><code>전체 구역 자산총액</code>: 위 토지유형별로 계산된 원천 자산가치 가액의 절대 총합이자, 비례율 공식의 기본 분모가 됩니다[cite: 1].</li>
             </ul>
         </div>
 
@@ -306,10 +311,64 @@
             <button type="button" class="save-btn" onclick="applyAdminSettings()">변수 저장 및 클라우드 동기화</button>
         </div>
     </div>
+
+    <!-- 🔥 [신규 추가] 4. 맨 밑에 들어가는 전체 비하인드 수식 백과사전 설명서 판넬 -->
+    <div class="asset-detail-box" style="margin-top: 2.5rem; border-color: #CBD5E1;">
+        <div class="section-title">
+            <div class="section-title-left" style="color: #0F172A;">💾 백엔드 비하인드 연산 전체 수식 보관함</div>
+            <button type="button" class="manual-btn" onclick="toggleManual('manual-formulas', this)">수식 보관함 열기 ▼</button>
+        </div>
+
+        <div id="manual-formulas" class="manual-pane">
+            <strong>🧱 브라우저 메모리 내부에서 실시간 연동 중인 수학적 공식 일람</strong>
+            
+            <div style="margin-top: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.75rem;">
+                <span style="font-weight: 600; color: var(--color-primary); font-size: 0.9rem;">1. 면적 비례 동적 스케일 크론 (Scale Factor)</span>
+                <p style="font-size: 0.85rem; color: var(--color-text-main); margin-top: 2px;">
+                    테이블의 면적이 바뀌면, 설계 문서상의 기준면적 대비 배율을 구하여 총 연면적과 건축 설계 세대 아파트 총량을 비례 배분합니다[cite: 1].<br>
+                    <code>스케일 배율 (scaleFactor) = 테이블에 입력된 총면적 합계 (㎡) ÷ 15,303.60 ㎡</code>[cite: 1]
+                </p>
+            </div>
+
+            <div style="margin-top: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.75rem;">
+                <span style="font-weight: 600; color: var(--color-primary); font-size: 0.9rem;">2. 총지출 (Total Cost) 산정식</span>
+                <p style="font-size: 0.85rem; color: var(--color-text-main); margin-top: 2px;">
+                    건축에 소요되는 모든 원가 비용을 원 단위 오차 없이 자동 합산하는 지출 엔진입니다[cite: 1].
+                </p>
+                <ul>
+                    <li><code>순공사비</code> = (총 연면적 평수 × 평당 공사비) − (공공임대 매입수입 × 82% 회수금)[cite: 1]</li>
+                    <li><code>설계·감리 인허가비</code> = 총공사비 원가의 7% 자동 강제 적립[cite: 1]</li>
+                    <li><code>금융비용 및 PF 이자</code> = 대구역 확장 스케일에 맞춘 금융 가중치 + 이주비 이자 연동 반영[cite: 1]</li>
+                    <li><code>기타 고정비</code> = 조합운영비 + 기반시설 설치비 + 일반분양분 공사 부가세(VAT 10%) + 학교용지 부담금 + 예비비(공사 원가의 5%)[cite: 1]</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.75rem;">
+                <span style="font-weight: 600; color: var(--color-primary); font-size: 0.9rem;">3. 총수입 (Total Income) 및 분배식</span>
+                <p style="font-size: 0.85rem; color: var(--color-text-main); margin-top: 2px;">
+                    조합원 분양가 단가와 일반분양, 임대 트랙의 매출을 정밀 조립합니다[cite: 1].
+                </p>
+                <ul>
+                    <li><code>조합원 분양가 단가</code> = [전체 자산가액(만원) ÷ 전체 면적(평) × 용적률] + (1.4 × 평당공사비)[cite: 1]</li>
+                    <li><code>조합원 분양 수입</code> = 평형별 조합원 세대수 × 공급 평수 × 위 조합원 분양가 단가[cite: 1]</li>
+                    <li><code>일반분양 매출 수입</code> = (일반분양 84타입 세대 × 34평 + 59타입 세대 × 25평) × 입력된 시나리오별 일반분양가[cite: 1]</li>
+                    <li><code>공공임대 매입 수입</code> = 기본 121억 원 × 면적 스케일 배율 (scaleFactor)[cite: 1]</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <span style="font-weight: 600; color: var(--color-primary); font-size: 0.9rem;">4. 비례율 (Proportionality Ratio) 최종 공식</span>
+                <p style="font-size: 0.85rem; color: var(--color-text-main); margin-top: 2px;">
+                    위에서 도출된 총수입, 총지출, 그리고 테이블의 원천 분모 자산을 엮어 최종 성적표를 도출합니다[cite: 1].<br>
+                    <code>비례율 (%) = [(총수입 − 총지출) ÷ 전체 구역 자산총액] × 100</code>[cite: 1]
+                </p>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
-// 유저 연동 파이어베이스 정보 동기화 완결
 const firebaseConfig = {
   apiKey: "AIzaSyBUB5rKk_cs_J1GVuJps6090mmIrsJwAZY",
   authDomain: "re-build-apt.firebaseapp.com",
@@ -347,14 +406,15 @@ let INPUT = {
   DETAIL_PRICES: { gongdong: 4500, dandok: 3500, geunsaeng: 4000, doro: 1500, gita: 2000 }
 };
 
-// 🔥 설명서 열고 닫기 수식 모듈 (작았다가 부드럽게 튕기며 커지는 바이브 애니메이션 핸들러)
 function toggleManual(id, btn) {
     const pane = document.getElementById(id);
     pane.classList.toggle('open');
     if (pane.classList.contains('open')) {
         btn.innerHTML = '산식 설명서 닫기 ▲';
+        if(id === 'manual-formulas') btn.innerHTML = '수식 보관함 닫기 ▲';
     } else {
         btn.innerHTML = '산식 설명서 보기 ▼';
+        if(id === 'manual-formulas') btn.innerHTML = '수식 보관함 열기 ▼';
     }
 }
 
@@ -452,7 +512,6 @@ function renderCalculator() {
   INPUT.SCENARIOS[1].GP = parseFloat(document.getElementById('inp-gp1').value) || 7000;
   INPUT.SCENARIOS[2].GP = parseFloat(document.getElementById('inp-gp2').value) || 7500;
 
-  // 💥 상단 대시보드 비례율 카드 파트를 깔끔히 소멸시키고 내부 텍스트 연동만 백엔드 동기화 수행
   const ratio0 = calcRatio(INPUT, INPUT.SCENARIOS[0]);
   const ratio1 = calcRatio(INPUT, INPUT.SCENARIOS[1]);
   const ratio2 = calcRatio(INPUT, INPUT.SCENARIOS[2]);
@@ -491,7 +550,6 @@ function renderCalculator() {
   const rightsValue = calcRightsValue(selectedAppraised, currentRatio);
   const finalDudam = ownerPrice - rightsValue;
 
-  // 🎯 결과 출력 보정 바인딩: 비례율이 계산 결과창 카드 안으로 정교하게 매칭 이식됨
   document.getElementById('dynamic-result-title').innerText = `💡 ${targetScenario.name} 시나리오 정산 상세 (조합원 평당가: ${Math.round(finalPricePerPyeong).toLocaleString()}만 원 산출)`;
   document.getElementById('res-appraised').innerText = selectedAppraised.toFixed(2) + '억 원';
   document.getElementById('res-rights').innerText = `${currentRatio.toFixed(1)}% ➡️ ${rightsValue.toFixed(2)}억 원`;
